@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+*.manifest
+*.spec
+
+# Virtual environments
+qml-env/
+venv/
+.venv/
+env/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Results & outputs
+results/*.png
+results/*.pdf
+results/*.csv
+results/*.joblib
+*.joblib
+
+# Datasets (large files — don't commit)
+*.pcap
+*.pcapng
+*.log
+*.log.labeled
+datasets/
+data/*.csv
+data/*.parquet
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Misc
+*.bak
+*.tmp
+*.log
