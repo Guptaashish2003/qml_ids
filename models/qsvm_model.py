@@ -68,7 +68,8 @@ class SVMBaseline(_BaseDetector):
 
     def __init__(self, kernel: str = "rbf", C: float = 1.0, **kwargs):
         super().__init__()
-        self.model = SVC(kernel=kernel, C=C, probability=True, **kwargs)
+        self.model = SVC(kernel=kernel, C=C, probability=True,
+                         class_weight="balanced", **kwargs)
 
     def fit(self, X: np.ndarray, y) -> "SVMBaseline":
         X_s = self._preprocess(X, fit=True)
@@ -137,15 +138,20 @@ class QSVMDetector(_BaseDetector):
     # ------------------------------------------------------------------
     def _build_cirq_kernel(self):
         """
-        A lightweight Cirq-based kernel: inner product of statevectors
-        produced by angle-encoding circuits (fallback when TFQ unavailable).
+        ZZFeatureMap-style kernel in Cirq (matches Qiskit ZZFeatureMap):
+          For each rep:
+            1. Hadamard on all qubits
+            2. Rz(2·x_i) single-qubit encoding
+            3. ZZ entanglement: CNOT(i,j) → Rz(2·x_i·x_j) → CNOT(i,j)
+          Then K(x_i, x_j) = |⟨φ(x_i)|φ(x_j)⟩|²
 
         Vectorised: precompute all statevectors, then K = |SV1 · SV2†|².
         """
         import cirq
 
-        sim = cirq.Simulator()
-        n_q = self.n_qubits
+        sim  = cirq.Simulator()
+        n_q  = self.n_qubits
+        reps = self.reps
         qubits = cirq.LineQubit.range(n_q)
 
         def _statevectors(X: np.ndarray) -> np.ndarray:
@@ -153,8 +159,19 @@ class QSVMDetector(_BaseDetector):
             svs = []
             for x in X:
                 c = cirq.Circuit()
-                for i, val in enumerate(x[:n_q]):
-                    c.append(cirq.rx(float(val))(qubits[i]))
+                for r in range(reps):
+                    # Hadamard layer
+                    c.append(cirq.H.on_each(*qubits))
+                    # Single-qubit Rz(2·x_i) encoding
+                    for i in range(n_q):
+                        c.append(cirq.rz(2.0 * float(x[i]))(qubits[i]))
+                    # ZZ entangling layer: pairs (i, j) for i < j
+                    for i in range(n_q):
+                        for j in range(i + 1, n_q):
+                            angle = 2.0 * float(x[i]) * float(x[j])
+                            c.append(cirq.CNOT(qubits[i], qubits[j]))
+                            c.append(cirq.rz(angle)(qubits[j]))
+                            c.append(cirq.CNOT(qubits[i], qubits[j]))
                 result = sim.simulate(c)
                 svs.append(result.final_state_vector)
             return np.array(svs)
@@ -162,7 +179,7 @@ class QSVMDetector(_BaseDetector):
         def kernel_fn(X1: np.ndarray, X2: np.ndarray) -> np.ndarray:
             sv1 = _statevectors(X1)   # (n1, 2^nq)
             sv2 = _statevectors(X2)   # (n2, 2^nq)
-            # K(i,j) = |<φ(x_i)|φ(x_j)>|²
+            # K(i,j) = |⟨φ(x_i)|φ(x_j)⟩|²
             return np.abs(sv1 @ sv2.conj().T) ** 2
 
         return kernel_fn
@@ -189,7 +206,8 @@ class QSVMDetector(_BaseDetector):
             try:
                 kernel = self._build_qiskit_kernel()
                 K_train = kernel.evaluate(x_vec=X_r)
-                self._svc = SVC(kernel="precomputed", C=self.C, probability=True)
+                self._svc = SVC(kernel="precomputed", C=self.C, probability=True,
+                                class_weight="balanced")
                 self._svc.fit(K_train, y_e)
                 self._X_train = X_r
             except ImportError as e:
@@ -200,7 +218,8 @@ class QSVMDetector(_BaseDetector):
         elif self.backend == "cirq_sim":
             self._cirq_kernel = self._build_cirq_kernel()
             K_train = self._cirq_kernel(X_r, X_r)
-            self._svc = SVC(kernel="precomputed", C=self.C, probability=True)
+            self._svc = SVC(kernel="precomputed", C=self.C, probability=True,
+                            class_weight="balanced")
             self._svc.fit(K_train, y_e)
             self._X_train = X_r
 

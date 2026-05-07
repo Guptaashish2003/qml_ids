@@ -157,7 +157,7 @@ class IoT23Loader:
 
         with open(path, "r", errors="replace") as f:
             for line in f:
-                if len(rows) >= self.max_rows_per_capture:
+                if self.max_rows_per_capture is not None and len(rows) >= self.max_rows_per_capture:
                     break
                 line = line.rstrip("\n\r")
 
@@ -264,20 +264,25 @@ class IoT23Loader:
                     NUMERIC_FEATURES.append(port_col)
 
         # Compute derived features
-        df["bytes_ratio"] = (
-            df.get("orig_bytes", pd.Series(0, index=df.index)).fillna(0) /
-            (df.get("resp_bytes", pd.Series(1, index=df.index)).fillna(1) + 1e-9)
-        )
-        df["pkt_ratio"] = (
-            df.get("orig_pkts", pd.Series(0, index=df.index)).fillna(0) /
-            (df.get("resp_pkts", pd.Series(1, index=df.index)).fillna(1) + 1e-9)
-        )
-        df["bytes_per_pkt"] = (
-            (df.get("orig_bytes", pd.Series(0, index=df.index)).fillna(0) +
-             df.get("resp_bytes", pd.Series(0, index=df.index)).fillna(0)) /
-            (df.get("orig_pkts", pd.Series(1, index=df.index)).fillna(1) +
-             df.get("resp_pkts", pd.Series(1, index=df.index)).fillna(1) + 1e-9)
-        )
+        orig_b = df.get("orig_bytes", pd.Series(0, index=df.index)).fillna(0)
+        resp_b = df.get("resp_bytes", pd.Series(0, index=df.index)).fillna(0)
+        orig_p = df.get("orig_pkts", pd.Series(0, index=df.index)).fillna(0)
+        resp_p = df.get("resp_pkts", pd.Series(0, index=df.index)).fillna(0)
+        dur    = df.get("duration", pd.Series(0, index=df.index)).fillna(0)
+
+        df["bytes_ratio"] = orig_b / (resp_b + 1e-9)
+        df["pkt_ratio"]   = orig_p / (resp_p + 1e-9)
+        df["bytes_per_pkt"] = (orig_b + resp_b) / (orig_p + resp_p + 1e-9)
+
+        # Additional derived features for better accuracy
+        df["total_bytes"]    = orig_b + resp_b
+        df["total_pkts"]     = orig_p + resp_p
+        df["byte_asymmetry"] = (orig_b - resp_b) / (orig_b + resp_b + 1e-9)
+        df["pkt_asymmetry"]  = (orig_p - resp_p) / (orig_p + resp_p + 1e-9)
+        df["bytes_per_sec"]  = (orig_b + resp_b) / (dur + 1e-9)
+        df["pkts_per_sec"]   = (orig_p + resp_p) / (dur + 1e-9)
+        df["avg_pkt_size_orig"] = orig_b / (orig_p + 1e-9)
+        df["avg_pkt_size_resp"] = resp_b / (resp_p + 1e-9)
 
         return df
 
@@ -290,7 +295,14 @@ class IoT23Loader:
         y = df["label_clean"].values
 
         # Select feature columns
-        numeric_cols = NUMERIC_FEATURES + ["bytes_ratio", "pkt_ratio", "bytes_per_pkt"]
+        derived = [
+            "bytes_ratio", "pkt_ratio", "bytes_per_pkt",
+            "total_bytes", "total_pkts",
+            "byte_asymmetry", "pkt_asymmetry",
+            "bytes_per_sec", "pkts_per_sec",
+            "avg_pkt_size_orig", "avg_pkt_size_resp",
+        ]
+        numeric_cols = NUMERIC_FEATURES + derived
         numeric_cols = [c for c in numeric_cols if c in df.columns]
 
         # One-hot encode categoricals
@@ -363,7 +375,7 @@ class IoT23Loader:
             print(f"[IoT23Loader] Reading {log_path.relative_to(self.dataset_dir)} …")
             df = self._read_conn_log(log_path)
             df = self._extract_features(df)
-            if self.max_rows_per_capture:
+            if self.max_rows_per_capture is not None:
                 df = df.head(self.max_rows_per_capture)
             dfs.append(df)
 

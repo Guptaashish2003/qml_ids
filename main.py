@@ -39,6 +39,12 @@ from sklearn.metrics import accuracy_score
 
 warnings.filterwarnings("ignore")
 
+try:
+    from imblearn.over_sampling import SMOTE
+    HAS_SMOTE = True
+except ImportError:
+    HAS_SMOTE = False
+
 ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, ROOT)
 
@@ -61,7 +67,7 @@ def load_iot23(dataset_dir: str, n_samples: int, binary: bool = False):
     loader = IoT23Loader(
         dataset_dir=dataset_dir,
         binary=binary,
-        max_rows_per_capture=100_000,
+        max_rows_per_capture=100_000,  # 100k per capture → ~400k total (fast load)
     )
 
     captures = loader.list_captures()
@@ -78,15 +84,14 @@ def load_iot23(dataset_dir: str, n_samples: int, binary: bool = False):
     mask            = np.isin(y, valid_classes)
     X, y            = X[mask], y[mask]
 
-    # Stratified sample for QML simulator
-    if n_samples < len(X):
+    # Stratified subsample if dataset is very large (for QSVM simulator speed)
+    if n_samples and n_samples < len(X):
+        print(f"\n  Stratified subsample: {n_samples:,} flows (from {len(X):,})")
         _, X, _, y = train_test_split(
-            X, y,
-            test_size=n_samples / len(X),
-            stratify=y,
-            random_state=42,
+            X, y, test_size=n_samples / len(X),
+            stratify=y, random_state=42
         )
-        print(f"Sampled: {len(X):,} flows")
+    print(f"  Using: {len(X):,} flows")
 
     return X, y, loader
 
@@ -217,8 +222,8 @@ def optimize_hyperparams(
 
     # ── QSVM grid search ────────────────────────────────────
     print("\n  [4b] Optimizing QSVM (quantum kernel) …")
-    qsvm_n_qubits = [4]        if fast else [2, 4]
-    qsvm_C_vals   = [0.1, 1.0] if fast else [0.1, 1.0, 10.0]
+    qsvm_n_qubits = [4, 8]     if fast else [4, 8]
+    qsvm_C_vals   = [1.0, 10.0] if fast else [0.1, 1.0, 10.0]
 
     best_qsvm_acc    = -1
     best_qsvm_params = {"n_qubits": 4, "C": 1.0}
@@ -381,8 +386,8 @@ def main():
     parser.add_argument("--mode", default="demo",
         choices=["demo", "full"],
         help="demo=SVM+QSVM only  |  full=+QCNN+benchmark")
-    parser.add_argument("--n-samples", type=int, default=1000,
-        help="Flows to use for QML training (default 1000)")
+    parser.add_argument("--n-samples", type=int, default=5000,
+        help="Stratified sample size (0=full dataset, default 5000)")
     parser.add_argument("--binary", action="store_true",
         help="Binary labels: Benign vs Malicious")
     parser.add_argument("--skip-optimize", action="store_true",
@@ -422,13 +427,32 @@ def main():
     )
     print(f"\n  Train: {len(X_train):,}  |  Test: {len(X_test):,}")
 
+    # ── SMOTE on training set only (avoid data leakage) ───
+    if HAS_SMOTE:
+        print("\n  Applying SMOTE oversampling to training set…")
+        classes_sm, counts_sm = np.unique(y_train, return_counts=True)
+        min_count = counts_sm.min()
+        k_neighbors = min(5, min_count - 1) if min_count > 1 else 1
+        try:
+            smote = SMOTE(random_state=42, k_neighbors=k_neighbors)
+            X_train, y_train = smote.fit_resample(X_train, y_train)
+            print(f"  After SMOTE training set: {len(X_train):,} flows")
+            classes_s, counts_s = np.unique(y_train, return_counts=True)
+            for cls, cnt in zip(classes_s, counts_s):
+                print(f"    {cls:30s}: {cnt:>8,}")
+        except Exception as e:
+            print(f"  SMOTE failed ({e}), continuing without oversampling.")
+    else:
+        print("\n  [warn] imbalanced-learn not installed — skipping SMOTE.")
+        print("         Install with: pip install imbalanced-learn")
+
     ev = Evaluator(class_names=class_names, save_dir=args.results)
 
     # ── Optimize ────────────────────────────────────────────
     if args.skip_optimize:
         best_params = {
-            "svm":  {"kernel": "rbf", "C": 1.0},
-            "qsvm": {"n_qubits": 4,   "C": 1.0},
+            "svm":  {"kernel": "rbf", "C": 10.0},
+            "qsvm": {"n_qubits": 8,   "C": 10.0},
         }
         print(f"\n  [Optimizer] Skipped → defaults: {best_params}")
     else:
