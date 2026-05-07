@@ -28,6 +28,17 @@ from sklearn.metrics import (
 from sklearn.preprocessing import label_binarize
 
 
+def _binarize(y_true, n_classes):
+    """
+    Wrapper around label_binarize that always returns shape (n, n_classes).
+    scikit-learn collapses binary problems to (n, 1); this expands them.
+    """
+    y_bin = label_binarize(y_true, classes=list(range(n_classes)))
+    if n_classes == 2 and y_bin.shape[1] == 1:
+        y_bin = np.hstack([1 - y_bin, y_bin])   # col0=class0, col1=class1
+    return y_bin
+
+
 class Evaluator:
     def __init__(
         self,
@@ -100,7 +111,7 @@ class Evaluator:
         y_prob: (N, n_classes) probability matrix.
         """
         n_classes = len(self.class_names)
-        y_bin     = label_binarize(y_true, classes=list(range(n_classes)))
+        y_bin     = _binarize(y_true, n_classes)
 
         fig, ax = plt.subplots(figsize=(8, 6))
         colors  = plt.cm.tab10(np.linspace(0, 1, n_classes))
@@ -139,7 +150,7 @@ class Evaluator:
     ):
         """Side-by-side ROC + Confusion (matches paper's figure layout)."""
         n_classes = len(self.class_names)
-        y_bin     = label_binarize(y_true, classes=list(range(n_classes)))
+        y_bin     = _binarize(y_true, n_classes)
         cm        = confusion_matrix(y_true, y_pred,
                                      labels=list(range(n_classes)))
         row_sums  = cm.sum(axis=1, keepdims=True)

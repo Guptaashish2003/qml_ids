@@ -1,0 +1,187 @@
+===========================================================
+  QCNN Intrusion Detection — IoT-23 (Full Research Suite)
+============================================================
+  n_qubits  = 4
+  n_layers  = 1
+  epochs    = 50
+  batch     = 32
+  lr        = 0.05
+  n_samples = 1000
+  binary    = True
+
+============================================================
+  STEP 1: Loading IoT-23 Dataset
+============================================================
+[IoT23Loader] Found 20 capture(s): ['CTU-IoT-Malware-Capture-1-1', 'CTU-IoT-Malware-Capture-17-1', 'CTU-IoT-Malware-Capture-20-1', 'CTU-IoT-Malware-Capture-21-1', 'CTU-IoT-Malware-Capture-3-1', 'CTU-IoT-Malware-Capture-33-1', 'CTU-IoT-Malware-Capture-34-1', 'CTU-IoT-Malware-Capture-35-1', 'CTU-IoT-Malware-Capture-36-1', 'CTU-IoT-Malware-Capture-39-1', 'CTU-IoT-Malware-Capture-42-1', 'CTU-IoT-Malware-Capture-43-1', 'CTU-IoT-Malware-Capture-44-1', 'CTU-IoT-Malware-Capture-48-1', 'CTU-IoT-Malware-Capture-49-1', 'CTU-IoT-Malware-Capture-52-1', 'CTU-IoT-Malware-Capture-60-1', 'CTU-IoT-Malware-Capture-7-1', 'CTU-IoT-Malware-Capture-8-1', 'CTU-IoT-Malware-Capture-9-1']
+[IoT23Loader] Reading CTU-IoT-Malware-Capture-1-1/bro/conn.log.labeled …
+[IoT23Loader] CTU-IoT-Malware-Capture-1-1: 500 flows
+[IoT23Loader] Reading CTU-IoT-Malware-Capture-17-1/bro/conn.log.labeled …
+[IoT23Loader] CTU-IoT-Malware-Capture-17-1: 500 flows
+[IoT23Loader] Reading CTU-IoT-Malware-Capture-20-1/bro/conn.log.labeled …
+[IoT23Loader] CTU-IoT-Malware-Capture-20-1: 500 flows
+[IoT23Loader] Reading CTU-IoT-Malware-Capture-21-1/bro/conn.log.labeled …
+[IoT23Loader] CTU-IoT-Malware-Capture-21-1: 500 flows
+[IoT23Loader] Reading CTU-IoT-Malware-Capture-3-1/bro/conn.log.labeled …
+[IoT23Loader] CTU-IoT-Malware-Capture-3-1: 500 flows
+[IoT23Loader] Reading CTU-IoT-Malware-Capture-33-1/bro/conn.log.labeled …
+[IoT23Loader] CTU-IoT-Malware-Capture-33-1: 500 flows
+[IoT23Loader] Reading CTU-IoT-Malware-Capture-34-1/bro/conn.log.labeled …
+[IoT23Loader] CTU-IoT-Malware-Capture-34-1: 500 flows
+[IoT23Loader] Reading CTU-IoT-Malware-Capture-35-1/bro/conn.log.labeled …
+[IoT23Loader] CTU-IoT-Malware-Capture-35-1: 500 flows
+[IoT23Loader] Reading CTU-IoT-Malware-Capture-36-1/bro/conn.log.labeled …
+[IoT23Loader] CTU-IoT-Malware-Capture-36-1: 500 flows
+[IoT23Loader] Reading CTU-IoT-Malware-Capture-39-1/bro/conn.log.labeled …
+[IoT23Loader] CTU-IoT-Malware-Capture-39-1: 500 flows
+[IoT23Loader] Reading CTU-IoT-Malware-Capture-42-1/bro/conn.log.labeled …
+[IoT23Loader] CTU-IoT-Malware-Capture-42-1: 500 flows
+[IoT23Loader] Reading CTU-IoT-Malware-Capture-43-1/bro/conn.log.labeled …
+[IoT23Loader] CTU-IoT-Malware-Capture-43-1: 500 flows
+[IoT23Loader] Reading CTU-IoT-Malware-Capture-44-1/bro/conn.log.labeled …
+[IoT23Loader] CTU-IoT-Malware-Capture-44-1: 237 flows
+[IoT23Loader] Reading CTU-IoT-Malware-Capture-48-1/bro/conn.log.labeled …
+[IoT23Loader] CTU-IoT-Malware-Capture-48-1: 500 flows
+[IoT23Loader] Reading CTU-IoT-Malware-Capture-49-1/bro/conn.log.labeled …
+[IoT23Loader] CTU-IoT-Malware-Capture-49-1: 500 flows
+[IoT23Loader] Reading CTU-IoT-Malware-Capture-52-1/bro/conn.log.labeled …
+[IoT23Loader] CTU-IoT-Malware-Capture-52-1: 500 flows
+[IoT23Loader] Reading CTU-IoT-Malware-Capture-60-1/bro/conn.log.labeled …
+[IoT23Loader] CTU-IoT-Malware-Capture-60-1: 500 flows
+[IoT23Loader] Reading CTU-IoT-Malware-Capture-7-1/bro/conn.log.labeled …
+[IoT23Loader] CTU-IoT-Malware-Capture-7-1: 500 flows
+[IoT23Loader] Reading CTU-IoT-Malware-Capture-8-1/bro/conn.log.labeled …
+[IoT23Loader] CTU-IoT-Malware-Capture-8-1: 500 flows
+[IoT23Loader] Reading CTU-IoT-Malware-Capture-9-1/bro/conn.log.labeled …
+[IoT23Loader] CTU-IoT-Malware-Capture-9-1: 500 flows
+
+[IoT23Loader] Total: 9,737 flows × 28 features
+   Benign                        :    3,835
+   Malicious                     :    5,902
+
+Loaded: 9,737 flows × 28 features
+
+============================================================
+  STEP 2: Cleaning
+============================================================
+  Shape after cleaning: (9737, 28)
+
+  Class distribution:
+    Benign                                3,835  ( 39.4%)  ███████████████
+    Malicious                             5,902  ( 60.6%)  ████████████████████████
+
+============================================================
+  STEP 3: Sampling & Splitting
+============================================================
+  After PCA: 4 features → 4 qubits
+  PCA explained variance: 71.9%
+
+============================================================
+  STEP 4: Classical CNN Baseline
+============================================================
+2026-05-07 05:48:34.687680: I external/local_tsl/tsl/cuda/cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+2026-05-07 05:48:34.721382: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-05-07 05:48:34.721419: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-05-07 05:48:34.722480: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+2026-05-07 05:48:34.728157: I external/local_tsl/tsl/cuda/cudart_stub.cc:31] Could not find cuda drivers on your machine, GPU will not be used.
+2026-05-07 05:48:34.728400: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2026-05-07 05:48:35.554646: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+  CNN Accuracy : 89.00%
+              precision    recall  f1-score   support
+
+      Benign       0.93      0.78      0.85        79
+   Malicious       0.87      0.96      0.91       121
+
+    accuracy                           0.89       200
+   macro avg       0.90      0.87      0.88       200
+weighted avg       0.89      0.89      0.89       200
+
+[Evaluator] Saved → results_qcnn/combined_CNN_IoT23.png
+
+============================================================
+  STEP 5: QCNN Training (Research Optimized)
+============================================================
+  QCNN Params: 28 | Batch: 32 | Epochs: 50
+
+  ── Training Classifier: Benign ──
+    Epoch  1/50 | loss=0.8274 | lr=0.0500 | ███
+    Epoch  2/50 | loss=0.8670 | lr=0.0500 | ██
+    Epoch  3/50 | loss=0.8014 | lr=0.0498 | ███
+    Epoch  4/50 | loss=0.6318 | lr=0.0496 | ███████
+    Epoch  5/50 | loss=0.6794 | lr=0.0492 | ██████
+    Epoch  6/50 | loss=0.6057 | lr=0.0488 | ███████
+    Epoch  7/50 | loss=0.5136 | lr=0.0482 | █████████
+    Epoch  8/50 | loss=0.4918 | lr=0.0476 | ██████████
+    Epoch  9/50 | loss=0.4593 | lr=0.0469 | ██████████
+    Epoch 10/50 | loss=0.4230 | lr=0.0461 | ███████████
+    Epoch 11/50 | loss=0.3989 | lr=0.0452 | ████████████
+    Epoch 12/50 | loss=0.4275 | lr=0.0443 | ███████████
+    Epoch 13/50 | loss=0.4312 | lr=0.0432 | ███████████
+    Epoch 14/50 | loss=0.4902 | lr=0.0421 | ██████████
+    Epoch 15/50 | loss=0.4923 | lr=0.0410 | ██████████
+    Epoch 16/50 | loss=0.5095 | lr=0.0397 | █████████
+    Epoch 17/50 | loss=0.5541 | lr=0.0384 | ████████
+    Epoch 18/50 | loss=0.5638 | lr=0.0371 | ████████
+    Epoch 19/50 | loss=0.6100 | lr=0.0357 | ███████
+    Epoch 20/50 | loss=0.6099 | lr=0.0342 | ███████
+    Epoch 21/50 | loss=0.6056 | lr=0.0328 | ███████
+    Epoch 22/50 | loss=0.6035 | lr=0.0313 | ███████
+    Epoch 23/50 | loss=0.6246 | lr=0.0297 | ███████
+    Epoch 24/50 | loss=0.6230 | lr=0.0282 | ███████
+    Epoch 25/50 | loss=0.6292 | lr=0.0266 | ███████
+    Epoch 26/50 | loss=0.6056 | lr=0.0250 | ███████
+    Epoch 27/50 | loss=0.6096 | lr=0.0235 | ███████
+
+  ── Training Classifier: Malicious ──
+    Epoch  1/50 | loss=0.4061 | lr=0.0500 | ███████████
+    Epoch  2/50 | loss=0.3798 | lr=0.0500 | ████████████
+    Epoch  3/50 | loss=0.3829 | lr=0.0498 | ████████████
+    Epoch  4/50 | loss=0.3325 | lr=0.0496 | █████████████
+    Epoch  5/50 | loss=0.2630 | lr=0.0492 | ██████████████
+    Epoch  6/50 | loss=0.2477 | lr=0.0488 | ███████████████
+    Epoch  7/50 | loss=0.2681 | lr=0.0482 | ██████████████
+    Epoch  8/50 | loss=0.2171 | lr=0.0476 | ███████████████
+    Epoch  9/50 | loss=0.3498 | lr=0.0469 | █████████████
+    Epoch 10/50 | loss=0.2930 | lr=0.0461 | ██████████████
+    Epoch 11/50 | loss=0.2636 | lr=0.0452 | ██████████████
+    Epoch 12/50 | loss=0.3197 | lr=0.0443 | █████████████
+    Epoch 13/50 | loss=0.3488 | lr=0.0432 | █████████████
+    Epoch 14/50 | loss=0.2772 | lr=0.0421 | ██████████████
+    Epoch 15/50 | loss=0.3859 | lr=0.0410 | ████████████
+    Epoch 16/50 | loss=0.4251 | lr=0.0397 | ███████████
+    Epoch 17/50 | loss=0.3886 | lr=0.0384 | ████████████
+    Epoch 18/50 | loss=0.3527 | lr=0.0371 | ████████████
+    Epoch 19/50 | loss=0.3853 | lr=0.0357 | ████████████
+    Epoch 20/50 | loss=0.3730 | lr=0.0342 | ████████████
+    Epoch 21/50 | loss=0.3835 | lr=0.0328 | ████████████
+    Epoch 22/50 | loss=0.3898 | lr=0.0313 | ████████████
+    Epoch 23/50 | loss=0.4269 | lr=0.0297 | ███████████
+    Epoch 24/50 | loss=0.3786 | lr=0.0282 | ████████████
+    Epoch 25/50 | loss=0.3467 | lr=0.0266 | █████████████
+    Epoch 26/50 | loss=0.3494 | lr=0.0250 | █████████████
+    Epoch 27/50 | loss=0.3772 | lr=0.0235 | ████████████
+
+============================================================
+  STEP 6: Evaluation & Plots
+============================================================
+
+  QCNN Accuracy: 91.00%
+              precision    recall  f1-score   support
+
+      Benign       0.91      0.86      0.88        79
+   Malicious       0.91      0.94      0.93       121
+
+    accuracy                           0.91       200
+   macro avg       0.91      0.90      0.90       200
+weighted avg       0.91      0.91      0.91       200
+
+[Evaluator] Saved → results_qcnn/combined_QCNN_Research.png
+
+============================================================
+  FINAL SUMMARY
+============================================================
+  Classical CNN        Accuracy:  89.00% | Time:    1.64s
+  Quantum QCNN         Accuracy:  91.00% | Time:  621.76s
+
+  Results saved to: results_qcnn/
+                                      
