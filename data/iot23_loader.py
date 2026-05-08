@@ -82,20 +82,27 @@ def _normalise_label(label: str) -> str:
     if pd.isna(label):
         return "Benign"
     label = str(label).strip()
-    if label in ("-", "Benign", "(empty)"):
+    
+    # Benign mappings
+    if label in ("-", "Benign", "(empty)", "benign"):
         return "Benign"
-    if "PortScan" in label or "HorizontalPortScan" in label:
+    
+    # Specific malicious mappings
+    l_lower = label.lower()
+    if "portscan" in l_lower or "horizontalportscan" in l_lower:
         return "PortScan"
-    if "DDoS" in label:
+    if "ddos" in l_lower:
         return "DDoS"
-    if "C&C" in label:
+    if "c&c" in l_lower:
         return "C&C"
-    if "Attack" in label:
+    if "attack" in l_lower:
         return "Attack"
-    if "FileDownload" in label or "HeartBeat" in label:
+    if "filedownload" in l_lower or "heartbeat" in l_lower:
         return "FileDownload"
-    if "Okiru" in label or "Mirai" in label or "Torii" in label:
+    if any(k in l_lower for k in ("okiru", "mirai", "torii")):
         return "Botnet"
+    
+    # Default for other malicious types
     return "Malicious"
 
 
@@ -234,16 +241,24 @@ class IoT23Loader:
         # Normalise column names (Zeek uses id.orig_h style)
         df.columns = [c.strip() for c in df.columns]
 
-        # Pick label column (could be 'label' or 'detailed-label')
-        label_col = None
-        for candidate in ["detailed-label", "label"]:
-            if candidate in df.columns:
-                label_col = candidate
-                break
-        if label_col is None:
-            df["label_clean"] = "Unknown"
-        else:
-            df["label_clean"] = df[label_col].apply(_normalise_label)
+        # Better label extraction: use 'label' to distinguish Benign/Malicious,
+        # and 'detailed-label' to find the specific attack type.
+        def get_best_label(row):
+            main   = str(row.get("label", "Benign")).strip().lower()
+            detail = str(row.get("detailed-label", "-")).strip()
+            
+            # If the main label is Benign, it's Benign
+            if main in ("benign", "-", "(empty)"):
+                return "Benign"
+            
+            # If it's Malicious, try to use the detailed label for specific class
+            if detail not in ("-", "(empty)", ""):
+                return _normalise_label(detail)
+                
+            # If no detail, return Malicious
+            return "Malicious"
+
+        df["label_clean"] = df.apply(get_best_label, axis=1)
 
         if self.binary:
             df["label_clean"] = df["label_clean"].apply(
